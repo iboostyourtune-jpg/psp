@@ -8,12 +8,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: ubuntu:22.04   # запускаем в контейнере под root (sudo не нужен)
+    container: ubuntu:22.04   # запускаем под root, sudo не нужен
     env:
       DEBIAN_FRONTEND: noninteractive
       PSPDEV: /usr/local/pspdev
       PSPSDK: /usr/local/pspdev/psp/sdk
-      PATH: /usr/local/pspdev/bin:${{ env.PATH }}
+      PATH: /usr/local/pspdev/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     steps:
       - uses: actions/checkout@v4
 
@@ -50,6 +50,8 @@ jobs:
         with:
           name: EBOOT.PBP
           path: out/EBOOT.PBP
+
+
 
 
 
