@@ -16,11 +16,11 @@ PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 #define SCR_WIDTH   480
 #define SCR_HEIGHT  272
 #define PIXEL_SIZE  4
-#define FRAME_SIZE  (BUF_WIDTH*SCR_HEIGHT*PIXEL_SIZE)
+#define FRAME_SIZE  (BUF_WIDTH * SCR_HEIGHT * PIXEL_SIZE)
 
 static unsigned int __attribute__((aligned(16))) list[262144];
 
-/* -------- калькулятор -------- */
+/* ===================== Калькулятор ===================== */
 static char display[64] = "0";
 static double acc = 0.0;
 static char op = 0;
@@ -74,53 +74,47 @@ static void backspace(void){
     display[len-1]=0;
 }
 
-/* -------- цвета ABGR -------- (похожие на iOS) */
-static const unsigned int COL_BG        = 0xFF000000; /* фон */
-static const unsigned int COL_DISPLAY   = 0xFFDDDDDD; /* дисплей (светло-серый) */
-static const unsigned int COL_NUM       = 0xFF333333; /* цифры */
-static const unsigned int COL_SPEC      = 0xFFA5A5A5; /* AC, +/-, % */
-static const unsigned int COL_OP        = 0xFF0095FF; /* оранжевые (ABGR для #FF9500) */
-static const unsigned int COL_SEL       = 0xFFFFFF55; /* подсветка выбора */
-static const unsigned int COL_TEXT_WHITE= 0xFFFFFFFF; /* белый текст */
-static const unsigned int COL_TEXT_BLACK= 0xFF000000; /* чёрный текст */
+/* ===================== Цвета (ABGR) ===================== */
+static const unsigned int COL_BG        = 0xFF000000;
+static const unsigned int COL_DISPLAY   = 0xFFDDDDDD;
+static const unsigned int COL_NUM       = 0xFF333333;
+static const unsigned int COL_SPEC      = 0xFFA5A5A5;
+static const unsigned int COL_OP        = 0xFF0095FF;   /* #FF9500 в ABGR */
+static const unsigned int COL_SEL       = 0xFFFFFF55;
+static const unsigned int COL_TEXT_WHITE= 0xFFFFFFFF;
+static const unsigned int COL_TEXT_BLACK= 0xFF000000;
 
-/* -------- геометрия кнопок (5 рядов) -------- */
+/* ===================== Кнопки (5 рядов) ===================== */
 typedef struct { int x,y,w,h; const char* label; int type; int r,c; } Btn;
 enum {BTN_NUM_T, BTN_SPEC_T, BTN_OP_T};
 
-/* сетка: ширина 104, высота 30, отступы X=12, Y=8, старт по Y=90 (влезет ровно 272px) */
 static const int LEFT=20, TOP=90, BW=104, BH=30, GX=12, GY=8;
 
 static Btn buttons[] = {
-    /* r0 */
     {LEFT+0*(BW+GX), TOP+0*(BH+GY), BW,   BH,   "AC", BTN_SPEC_T, 0,0},
     {LEFT+1*(BW+GX), TOP+0*(BH+GY), BW,   BH,   "+/-",BTN_SPEC_T, 0,1},
     {LEFT+2*(BW+GX), TOP+0*(BH+GY), BW,   BH,   "%",  BTN_SPEC_T, 0,2},
     {LEFT+3*(BW+GX), TOP+0*(BH+GY), BW,   BH,   "/",  BTN_OP_T,   0,3},
-    /* r1 */
     {LEFT+0*(BW+GX), TOP+1*(BH+GY), BW,   BH,   "7",  BTN_NUM_T,  1,0},
     {LEFT+1*(BW+GX), TOP+1*(BH+GY), BW,   BH,   "8",  BTN_NUM_T,  1,1},
     {LEFT+2*(BW+GX), TOP+1*(BH+GY), BW,   BH,   "9",  BTN_NUM_T,  1,2},
     {LEFT+3*(BW+GX), TOP+1*(BH+GY), BW,   BH,   "*",  BTN_OP_T,   1,3},
-    /* r2 */
     {LEFT+0*(BW+GX), TOP+2*(BH+GY), BW,   BH,   "4",  BTN_NUM_T,  2,0},
     {LEFT+1*(BW+GX), TOP+2*(BH+GY), BW,   BH,   "5",  BTN_NUM_T,  2,1},
     {LEFT+2*(BW+GX), TOP+2*(BH+GY), BW,   BH,   "6",  BTN_NUM_T,  2,2},
     {LEFT+3*(BW+GX), TOP+2*(BH+GY), BW,   BH,   "-",  BTN_OP_T,   2,3},
-    /* r3 */
     {LEFT+0*(BW+GX), TOP+3*(BH+GY), BW,   BH,   "1",  BTN_NUM_T,  3,0},
     {LEFT+1*(BW+GX), TOP+3*(BH+GY), BW,   BH,   "2",  BTN_NUM_T,  3,1},
     {LEFT+2*(BW+GX), TOP+3*(BH+GY), BW,   BH,   "3",  BTN_NUM_T,  3,2},
     {LEFT+3*(BW+GX), TOP+3*(BH+GY), BW,   BH,   "+",  BTN_OP_T,   3,3},
-    /* r4 (низ) — 0 широкий на два слота, затем . и = */
-    {LEFT+0*(BW+GX), TOP+4*(BH+GY), BW*2+GX, BH,      "0",  BTN_NUM_T,  4,0}, /* ширина 220 */
+    {LEFT+0*(BW+GX), TOP+4*(BH+GY), BW*2+GX, BH,      "0",  BTN_NUM_T,  4,0},
     {LEFT+2*(BW+GX), TOP+4*(BH+GY), BW,      BH,      ".",  BTN_NUM_T,  4,2},
     {LEFT+3*(BW+GX), TOP+4*(BH+GY), BW,      BH,      "=",  BTN_OP_T,   4,3},
 };
 static const int BTN_COUNT = sizeof(buttons)/sizeof(buttons[0]);
 static int sel = 0;
 
-/* -------- GU квадраты -------- */
+/* ===================== GU квадраты ===================== */
 typedef struct { float x,y,z; } Vertex;
 static void drawQuad(int x,int y,int w,int h,unsigned int color){
     sceGuColor(color);
@@ -134,9 +128,8 @@ static void drawQuad(int x,int y,int w,int h,unsigned int color){
     sceGuDrawArray(GU_TRIANGLES, GU_VERTEX_32BITF|GU_TRANSFORM_2D, 6, 0, v);
 }
 
-/* -------- рендер кадра -------- */
-static void render(){
-    /* GU: фон, дисплей, кнопки */
+/* ============= Рендер кадра (GU -> swap -> текст) ============= */
+static void* render_gu_and_swap(void){
     sceGuStart(GU_DIRECT, list);
     sceGuClearColor(COL_BG);
     sceGuClear(GU_COLOR_BUFFER_BIT);
@@ -157,84 +150,43 @@ static void render(){
         unsigned int col  = (i==sel) ? COL_SEL : base;
         drawQuad(b->x, b->y, b->w, b->h, col);
     }
-    sceGuFinish(); sceGuSync(0,0);
 
-    /* DebugScreen: заголовок, число, подписи */
-    // заголовок
-    pspDebugScreenSetTextColor(COL_TEXT_WHITE);
-    pspDebugScreenSetXY(2,1);  // ~16px слева, 8px сверху
-    pspDebugScreenPrintf("iOS Calculator by Serge Legran");
-
-    // число на дисплее — вправо
-    {
-        int sCols = 55; // 440px/8
-        int startCol = 20/8 + (sCols - (int)strlen(display) - 1);
-        if(startCol < 3) startCol = 3;
-        int row = 40/8 + 2; // вертикально центровано примерно
-        pspDebugScreenSetTextColor(COL_TEXT_BLACK);
-        pspDebugScreenSetXY(startCol, row);
-        pspDebugScreenPrintf("%s", display);
-    }
-
-    // подписи на кнопках
-    pspDebugScreenSetTextColor(COL_TEXT_WHITE);
-    for(int i=0;i<BTN_COUNT;i++){
-        Btn *b=&buttons[i];
-        int labelLen = (int)strlen(b->label);
-        int col = (b->x + b->w/2)/8 - (labelLen/2);
-        int row = (b->y + b->h/2)/8;
-        if(col<0) col=0; if(row<0) row=0;
-        pspDebugScreenSetXY(col, row);
-        pspDebugScreenPrintf("%s", b->label);
-    }
+    sceGuFinish();
+    sceGuSync(0,0);
+    /* ВАЖНО: меняем буферы и возвращаем адрес текущего буфера показа */
+    return sceGuSwapBuffers();
 }
 
-/* -------- нажатия -------- */
-static void press_label(const char* label){
-    if(strcmp(label,"AC")==0){ clear_all(); return; }
-    if(strcmp(label,"+/-")==0){ toggle_sign(); return; }
-    if(strcmp(label,"=")==0){ press_equal(); return; }
-    if(strcmp(label,"%")==0){ double v=display_to_double(); v/=100.0; set_display_double(v); return; }
-    if(strcmp(label,".")==0){ input_digit('.'); return; }
-    if(strcmp(label,"+")==0||strcmp(label,"-")==0||strcmp(label,"*")==0||strcmp(label,"/")==0){
-        do_op(label[0]); clear_entry(); return;
-    }
-    if(label[0]>='0' && label[0]<='9' && label[1]=='\0'){ input_digit(label[0]); return; }
-}
-
-/* -------- навигация по сетке (5 рядов) -------- */
-static void move_lr(int dir){ /* dir=-1 влево, +1 вправо — в пределах строки */
-    int r = buttons[sel].r, c = buttons[sel].c;
-    int best=-1, bestc = c + dir * 99;
+/* ===================== Навигация ===================== */
+static void move_lr(int dir){
+    int r=buttons[sel].r, c=buttons[sel].c, best=-1;
     for(int i=0;i<BTN_COUNT;i++){
         if(buttons[i].r!=r) continue;
-        int cc = buttons[i].c;
-        if(dir<0 && cc < c){ if(best==-1 || cc>buttons[best].c) best=i; }
-        if(dir>0 && cc > c){ if(best==-1 || cc<buttons[best].c) best=i; }
+        if(dir<0 && buttons[i].c < c && (best==-1 || buttons[i].c>buttons[best].c)) best=i;
+        if(dir>0 && buttons[i].c > c && (best==-1 || buttons[i].c<buttons[best].c)) best=i;
     }
-    if(best!=-1) sel = best;
+    if(best!=-1) sel=best;
 }
-static void move_ud(int dir){ /* dir=-1 вверх, +1 вниз — ближайшая колонка */
-    int r = buttons[sel].r, c = buttons[sel].c;
-    int targetR = r + dir;
-    if(targetR<0 || targetR>4) return;
-    int best=-1, bestDiff=999;
+static void move_ud(int dir){
+    int r=buttons[sel].r, c=buttons[sel].c, target=r+dir;
+    if(target<0 || target>4) return;
+    int best=-1, diff=999;
     for(int i=0;i<BTN_COUNT;i++){
-        if(buttons[i].r != targetR) continue;
-        int diff = abs(buttons[i].c - c);
-        if(diff < bestDiff){ bestDiff = diff; best = i; }
+        if(buttons[i].r!=target) continue;
+        int d=abs(buttons[i].c - c);
+        if(d<diff){ diff=d; best=i; }
     }
-    if(best!=-1) sel = best;
+    if(best!=-1) sel=best;
 }
 
-/* -------- main -------- */
+/* ===================== Main ===================== */
 int main(){
-    /* GU init: один буфер (draw == disp), чтобы debug-screen был виден поверх */
+    /* Инициализация GU (двойная буферизация) */
     sceGuInit();
     sceGuStart(GU_DIRECT, list);
-    sceGuDrawBuffer(GU_PSM_8888,(void*)0,BUF_WIDTH);
-    sceGuDispBuffer(SCR_WIDTH,SCR_HEIGHT,(void*)0,BUF_WIDTH);
-    sceGuDepthBuffer((void*)FRAME_SIZE,BUF_WIDTH);
+    sceGuDrawBuffer(GU_PSM_8888, (void*)0, BUF_WIDTH);
+    sceGuDispBuffer(SCR_WIDTH, SCR_HEIGHT, (void*)FRAME_SIZE, BUF_WIDTH); /* второй буфер как display */
+    sceGuDepthBuffer((void*)(FRAME_SIZE*2), BUF_WIDTH);
     sceGuOffset(2048-(SCR_WIDTH/2), 2048-(SCR_HEIGHT/2));
     sceGuViewport(2048,2048,SCR_WIDTH,SCR_HEIGHT);
     sceGuDisable(GU_DEPTH_TEST);
@@ -242,34 +194,72 @@ int main(){
     sceDisplayWaitVblankStart();
     sceGuDisplay(GU_TRUE);
 
-    /* Debug overlay после включения дисплея — будет поверх GU */
+    /* Один раз инициализируем debug-screen */
     pspDebugScreenInit();
-    pspDebugScreenSetBackColor(0);            // не очищаем фон
-    pspDebugScreenSetTextColor(COL_TEXT_WHITE);
 
-    /* Controls */
+    /* Контроллер */
     SceCtrlData pad, old={0};
     sceCtrlSetSamplingCycle(0);
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
 
     while(1){
-        render();
+        /* 1) рисуем GU и меняем буферы */
+        void* fb = render_gu_and_swap();
 
+        /* 2) печатаем ТЕКСТ поверх именно в текущий буфер показа */
+        pspDebugScreenSetBase((u32*)fb);
+        pspDebugScreenSetTextColor(COL_TEXT_WHITE);
+        pspDebugScreenSetXY(2,1);
+        pspDebugScreenPrintf("iOS Calculator by Serge Legran");
+
+        /* число на дисплее (вправо) */
+        {
+            int cols = 55; /* ~440/8 */
+            int startCol = 20/8 + (cols - (int)strlen(display) - 1);
+            if(startCol < 3) startCol = 3;
+            int row = 40/8 + 2;
+            pspDebugScreenSetTextColor(COL_TEXT_BLACK);
+            pspDebugScreenSetXY(startCol, row);
+            pspDebugScreenPrintf("%s", display);
+        }
+
+        /* подписи на кнопках */
+        pspDebugScreenSetTextColor(COL_TEXT_WHITE);
+        for(int i=0;i<BTN_COUNT;i++){
+            Btn *b=&buttons[i];
+            int len=(int)strlen(b->label);
+            int col=(b->x + b->w/2)/8 - (len/2);
+            int row=(b->y + b->h/2)/8;
+            if(col<0) col=0; if(row<0) row=0;
+            pspDebugScreenSetXY(col,row);
+            pspDebugScreenPrintf("%s", b->label);
+        }
+
+        /* ввод */
         sceCtrlReadBufferPositive(&pad,1);
-        if((pad.Buttons & PSP_CTRL_START) && !(old.Buttons & PSP_CTRL_START)) break;
+        if((pad.Buttons&PSP_CTRL_START)&&!(old.Buttons&PSP_CTRL_START)) break;
 
-        if((pad.Buttons & PSP_CTRL_LEFT)  && !(old.Buttons & PSP_CTRL_LEFT))  move_lr(-1);
-        if((pad.Buttons & PSP_CTRL_RIGHT) && !(old.Buttons & PSP_CTRL_RIGHT)) move_lr(+1);
-        if((pad.Buttons & PSP_CTRL_UP)    && !(old.Buttons & PSP_CTRL_UP))    move_ud(-1);
-        if((pad.Buttons & PSP_CTRL_DOWN)  && !(old.Buttons & PSP_CTRL_DOWN))  move_ud(+1);
+        if((pad.Buttons&PSP_CTRL_LEFT)&&!(old.Buttons&PSP_CTRL_LEFT))   move_lr(-1);
+        if((pad.Buttons&PSP_CTRL_RIGHT)&&!(old.Buttons&PSP_CTRL_RIGHT)) move_lr(+1);
+        if((pad.Buttons&PSP_CTRL_UP)&&!(old.Buttons&PSP_CTRL_UP))       move_ud(-1);
+        if((pad.Buttons&PSP_CTRL_DOWN)&&!(old.Buttons&PSP_CTRL_DOWN))   move_ud(+1);
 
-        if((pad.Buttons & PSP_CTRL_CROSS) && !(old.Buttons & PSP_CTRL_CROSS)) press_label(buttons[sel].label);
-        if((pad.Buttons & PSP_CTRL_CIRCLE)&& !(old.Buttons & PSP_CTRL_CIRCLE)) clear_all();
-        if((pad.Buttons & PSP_CTRL_SQUARE)&& !(old.Buttons & PSP_CTRL_SQUARE)) backspace();
-        if((pad.Buttons & PSP_CTRL_TRIANGLE)&&!(old.Buttons & PSP_CTRL_TRIANGLE)) press_equal();
-        if((pad.Buttons & PSP_CTRL_SELECT)&& !(old.Buttons & PSP_CTRL_SELECT)) clear_entry();
-        if((pad.Buttons & PSP_CTRL_LTRIGGER)&&!(old.Buttons & PSP_CTRL_LTRIGGER)) toggle_sign();
-        if((pad.Buttons & PSP_CTRL_RTRIGGER)&&!(old.Buttons & PSP_CTRL_RTRIGGER)) toggle_sign();
+        if((pad.Buttons&PSP_CTRL_CROSS)&&!(old.Buttons&PSP_CTRL_CROSS))     {
+            const char* L = buttons[sel].label;
+            if(strcmp(L,"AC")==0) clear_all();
+            else if(strcmp(L,"+/-")==0) toggle_sign();
+            else if(strcmp(L,"=")==0) press_equal();
+            else if(strcmp(L,"%")==0){ double v=display_to_double(); set_display_double(v/100.0); }
+            else if(strcmp(L,".")==0) input_digit('.');
+            else if(strcmp(L,"+")==0||strcmp(L,"-")==0||strcmp(L,"*")==0||strcmp(L,"/")==0){ do_op(L[0]); clear_entry(); }
+            else if(L[0]>='0'&&L[0]<='9'&&L[1]=='\0') input_digit(L[0]);
+        }
+        if((pad.Buttons&PSP_CTRL_SQUARE)&&!(old.Buttons&PSP_CTRL_SQUARE)) backspace();
+        if((pad.Buttons&PSP_CTRL_CIRCLE)&&!(old.Buttons&PSP_CTRL_CIRCLE)) clear_all();
+        if((pad.Buttons&PSP_CTRL_TRIANGLE)&&!(old.Buttons&PSP_CTRL_TRIANGLE)) press_equal();
+        if((pad.Buttons&PSP_CTRL_SELECT)&&!(old.Buttons&PSP_CTRL_SELECT)) clear_entry();
+        if((pad.Buttons&PSP_CTRL_LTRIGGER)&&!(old.Buttons&PSP_CTRL_LTRIGGER)) toggle_sign();
+        if((pad.Buttons&PSP_CTRL_RTRIGGER)&&!(old.Buttons&PSP_CTRL_RTRIGGER)) toggle_sign();
 
         old = pad;
         sceDisplayWaitVblankStart();
