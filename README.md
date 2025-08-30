@@ -1,30 +1,17 @@
-# Hello PSP (homebrew)
+# iOS-style Calculator for PSP
 
-Минимальное приложение для PSP. Управление: крестовина двигает символ `@`, `START` — выход.
+Простое калькулятор-приложение в текстовом UI (iOS-like).
 
-## Быстрая сборка через Docker (без регистрации)
+**Управление**: D-Pad — перемещать выделение, **X** — нажать кнопку, **O** — AC (сброс), **[]** — Backspace, **△** — равно, **L/R** — смена знака, **SELECT** — CE (очистить ввод), **START** — выход.
+
+## Сборка в GitHub Actions
+Используй workflow из репозитория (контейнер `ghcr.io/pspdev/pspdev:latest`).
+
+## Сборка локально через Docker
 ```bash
-docker pull pspdev/pspdev
-# macOS/Linux
-./docker-build.sh
-# Windows PowerShell (если не используете .bat)
-docker run --rm -v ${PWD}:/work -w /work pspdev/pspdev bash -lc "make clean && make && mkdir -p /work/out && cp EBOOT.PBP /work/out/EBOOT.PBP"
-```
-Артефакт: `out/EBOOT.PBP`.
-
-## Сборка локально (если установлен PSPSDK)
-```bash
-export PSPDEV=/usr/local/pspdev
-export PSPSDK=$PSPDEV/psp/sdk
-export PATH=$PATH:$PSPDEV/bin
-./build_local.sh
+docker run --rm -v "$PWD":/work -w /work ghcr.io/pspdev/pspdev:latest bash -lc "make clean && make && mkdir -p /work/out && cp EBOOT.PBP /work/out/EBOOT.PBP"
 ```
 
-## PPSSPP
-Откройте `out/EBOOT.PBP`.
-
-## PSP с CFW
-Скопируйте папку с `EBOOT.PBP` в `ms0:/PSP/GAME/HelloPSP/`.
-
-### Иконка и фон меню
-В `assets/` лежат `ICON0.PNG` (144x80) и `PIC1.PNG` (480x272). Их можно заменить своими.
+## Запуск
+- PPSSPP: открой `out/EBOOT.PBP`
+- PSP (CFW): скопируй `EBOOT.PBP` в `ms0:/PSP/GAME/CalcIOS/`
