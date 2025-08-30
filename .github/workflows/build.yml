@@ -1,0 +1,28 @@
+name: build-psp
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build in dockcross/psp
+        uses: addnab/docker-run-action@v3
+        with:
+          image: dockcross/psp
+          options: -v ${{ github.workspace }}:/work -w /work
+          run: |
+            make clean && make
+            mkdir -p out
+            cp EBOOT.PBP out/EBOOT.PBP
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EBOOT.PBP
+          path: out/EBOOT.PBP
