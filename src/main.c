@@ -3,7 +3,6 @@
 #include <pspctrl.h>
 #include <pspgu.h>
 #include <pspgum.h>
-#include <pspdebug.h>
 #include <psppower.h>
 
 #include <stdio.h>
@@ -92,6 +91,105 @@ static const unsigned int COL_SEL         = 0xFFFFFF55; /* подсветка в
 static const unsigned int COL_TEXT_WHITE  = 0xFFFFFFFF;
 static const unsigned int COL_TEXT_BLACK  = 0xFF000000;
 
+/* ---------------- 8x8 FONT (subset) ------------------ */
+typedef unsigned char u8;
+typedef struct { char ch; u8 row[8]; } Glyph;
+static const Glyph FONT[] = {
+    /* digits */
+    {'0',{0x3C,0x42,0x46,0x4A,0x52,0x62,0x42,0x3C}},
+    {'1',{0x08,0x18,0x28,0x08,0x08,0x08,0x08,0x3E}},
+    {'2',{0x3C,0x42,0x02,0x0C,0x30,0x40,0x40,0x7E}},
+    {'3',{0x3C,0x42,0x02,0x1C,0x02,0x02,0x42,0x3C}},
+    {'4',{0x04,0x0C,0x14,0x24,0x44,0x7E,0x04,0x04}},
+    {'5',{0x7E,0x40,0x40,0x7C,0x02,0x02,0x42,0x3C}},
+    {'6',{0x1C,0x20,0x40,0x7C,0x42,0x42,0x42,0x3C}},
+    {'7',{0x7E,0x02,0x04,0x08,0x10,0x20,0x20,0x20}},
+    {'8',{0x3C,0x42,0x42,0x3C,0x42,0x42,0x42,0x3C}},
+    {'9',{0x3C,0x42,0x42,0x3E,0x02,0x04,0x08,0x30}},
+    {'.',{0x00,0x00,0x00,0x00,0x00,0x18,0x18,0x00}},
+    {'+',{0x00,0x08,0x08,0x7F,0x08,0x08,0x00,0x00}},
+    {'-',{0x00,0x00,0x00,0x7E,0x00,0x00,0x00,0x00}},
+    {'*',{0x00,0x24,0x18,0x7E,0x18,0x24,0x00,0x00}},
+    {'/',{0x02,0x04,0x08,0x10,0x20,0x40,0x00,0x00}},
+    {'%',{0x62,0x64,0x08,0x10,0x20,0x4C,0x8C,0x00}},
+    {'=',{0x00,0x00,0x7E,0x00,0x7E,0x00,0x00,0x00}},
+    /* letters used in title (UPPERCASE) */
+    {'A',{0x18,0x24,0x42,0x42,0x7E,0x42,0x42,0x42}},
+    {'B',{0x7C,0x42,0x42,0x7C,0x42,0x42,0x42,0x7C}},
+    {'C',{0x3C,0x42,0x40,0x40,0x40,0x40,0x42,0x3C}},
+    {'E',{0x7E,0x40,0x40,0x7C,0x40,0x40,0x40,0x7E}},
+    {'G',{0x3C,0x42,0x40,0x4E,0x42,0x42,0x42,0x3C}},
+    {'I',{0x7E,0x18,0x18,0x18,0x18,0x18,0x18,0x7E}},
+    {'L',{0x40,0x40,0x40,0x40,0x40,0x40,0x40,0x7E}},
+    {'N',{0x42,0x62,0x52,0x4A,0x46,0x42,0x42,0x42}},
+    {'O',{0x3C,0x42,0x42,0x42,0x42,0x42,0x42,0x3C}},
+    {'R',{0x7C,0x42,0x42,0x7C,0x48,0x44,0x42,0x41}},
+    {'S',{0x3C,0x42,0x40,0x3C,0x02,0x02,0x42,0x3C}},
+    {'T',{0x7E,0x18,0x18,0x18,0x18,0x18,0x18,0x18}},
+    {'U',{0x42,0x42,0x42,0x42,0x42,0x42,0x42,0x3C}},
+    {'Y',{0x42,0x42,0x24,0x18,0x18,0x18,0x18,0x18}},
+    {' ',{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}},
+};
+static const int FONT_COUNT = sizeof(FONT)/sizeof(FONT[0]);
+
+static const u8* glyphFor(char c){
+    if(c>='a' && c<='z') c = (char)(c - 'a' + 'A'); // вверхний регистр
+    for(int i=0;i<FONT_COUNT;i++) if(FONT[i].ch==c) return FONT[i].row;
+    return NULL;
+}
+
+/* -------- GU primitives -------- */
+typedef struct { float x,y,z; } Vertex;
+
+static void drawQuad(int x,int y,int w,int h,unsigned int color){
+    sceGuColor(color);
+    Vertex* v=(Vertex*)sceGuGetMemory(6*sizeof(Vertex));
+    v[0].x=x;   v[0].y=y;   v[0].z=0;
+    v[1].x=x+w; v[1].y=y;   v[1].z=0;
+    v[2].x=x;   v[2].y=y+h; v[2].z=0;
+    v[3].x=x+w; v[3].y=y;   v[3].z=0;
+    v[4].x=x+w; v[4].y=y+h; v[4].z=0;
+    v[5].x=x;   v[5].y=y+h; v[5].z=0;
+    sceGuDrawArray(GU_TRIANGLES, GU_VERTEX_32BITF|GU_TRANSFORM_2D, 6, 0, v);
+}
+
+/* Сборка вершин для одного символа за один вызов drawArray (эффективно) */
+static void drawGlyph(int x,int y,char c,int s,unsigned int color){
+    const u8* g = glyphFor(c); if(!g) return;
+    /* максимум 64 пикселя → 64*2 треугольника → 128 * 3 вершины = 384 вершин */
+    Vertex* v = (Vertex*)sceGuGetMemory(384*sizeof(Vertex));
+    int n = 0;
+    sceGuColor(color);
+    for(int r=0;r<8;r++){
+        u8 bits = g[r];
+        for(int col=0; col<8; col++){
+            if(bits & (0x80>>col)){
+                int px = x + col*s;
+                int py = y + r*s;
+                v[n+0].x=px;     v[n+0].y=py;     v[n+0].z=0;
+                v[n+1].x=px+s;   v[n+1].y=py;     v[n+1].z=0;
+                v[n+2].x=px;     v[n+2].y=py+s;   v[n+2].z=0;
+                v[n+3].x=px+s;   v[n+3].y=py;     v[n+3].z=0;
+                v[n+4].x=px+s;   v[n+4].y=py+s;   v[n+4].z=0;
+                v[n+5].x=px;     v[n+5].y=py+s;   v[n+5].z=0;
+                n += 6;
+            }
+        }
+    }
+    if(n>0) sceGuDrawArray(GU_TRIANGLES, GU_VERTEX_32BITF|GU_TRANSFORM_2D, n, 0, v);
+}
+static void drawText(int x,int y,const char* txt,int s,unsigned int color){
+    int cx=x;
+    for(const char* p=txt; *p; ++p){
+        if(*p=='\n'){ y += 9*s; cx = x; continue; }
+        drawGlyph(cx,y,*p,s,color);
+        cx += 8*s;
+    }
+}
+static int textWidth(const char* txt,int s){
+    int w=0; for(const char* p=txt; *p; ++p) w += 8*s; return w;
+}
+
 /* ---------------- Buttons (5 rows) -------------------- */
 typedef struct { int x,y,w,h; const char* label; int type; int r,c; } Btn;
 enum {BTN_NUM_T, BTN_SPEC_T, BTN_OP_T};
@@ -126,20 +224,6 @@ static Btn buttons[] = {
 };
 static const int BTN_COUNT = sizeof(buttons)/sizeof(buttons[0]);
 static int sel = 0;
-
-/* ---------------- GU rectangles ---------------------- */
-typedef struct { float x,y,z; } Vertex;
-static void drawQuad(int x,int y,int w,int h,unsigned int color){
-    sceGuColor(color);
-    Vertex* v=(Vertex*)sceGuGetMemory(6*sizeof(Vertex));
-    v[0].x=x;   v[0].y=y;   v[0].z=0;
-    v[1].x=x+w; v[1].y=y;   v[1].z=0;
-    v[2].x=x;   v[2].y=y+h; v[2].z=0;
-    v[3].x=x+w; v[3].y=y;   v[3].z=0;
-    v[4].x=x+w; v[4].y=y+h; v[4].z=0;
-    v[5].x=x;   v[5].y=y+h; v[5].z=0;
-    sceGuDrawArray(GU_TRIANGLES, GU_VERTEX_32BITF | GU_TRANSFORM_2D, 6, 0, v);
-}
 
 /* -------------- Navigation helpers ------------------- */
 static void move_lr(int dir){ /* -1 left, +1 right within row */
@@ -176,9 +260,62 @@ static void press_label(const char* L){
     if(L[0]>='0' && L[0]<='9' && L[1]=='\0'){ input_digit(L[0]); return; }
 }
 
+/* ---------------- RENDER ------------------------------ */
+static void render(){
+    sceGuStart(GU_DIRECT, list);
+    sceGuClearColor(COL_BG);
+    sceGuClear(GU_COLOR_BUFFER_BIT);
+    sceGuDisable(GU_DEPTH_TEST);
+    sceGuShadeModel(GU_FLAT);
+    sceGumMatrixMode(GU_PROJECTION); sceGumLoadIdentity();
+    sceGumOrtho(0, SCR_WIDTH, SCR_HEIGHT, 0, -1, 1);
+    sceGumMatrixMode(GU_VIEW);  sceGumLoadIdentity();
+    sceGumMatrixMode(GU_MODEL); sceGumLoadIdentity();
+
+    /* дисплей */
+    drawQuad(20, 40, 440, 60, COL_DISPLAY);
+
+    /* заголовок */
+    const char* title = "IOS CALCULATOR BY SERGE LEGRAN";
+    int ts = 2;
+    int tw = textWidth(title, ts);
+    int tx = (SCR_WIDTH - tw)/2;
+    if(tx < 8) tx = 8;
+    drawText(tx, 12, title, ts, COL_TEXT_WHITE);
+
+    /* число справа в дисплее */
+    {
+        int s = 3;
+        int w = textWidth(display, s);
+        int dx = 20 + 440 - 10 - w;
+        if(dx < 24) dx = 24;
+        int dy = 40 + (60 - 8*s)/2;
+        drawText(dx, dy, display, s, COL_TEXT_BLACK);
+    }
+
+    /* кнопки */
+    for(int i=0;i<BTN_COUNT;i++){
+        Btn *b=&buttons[i];
+        unsigned int base = (b->type==BTN_OP_T)? COL_OP : (b->type==BTN_SPEC_T? COL_SPEC : COL_NUM);
+        unsigned int col  = (i==sel)? COL_SEL : base;
+        drawQuad(b->x, b->y, b->w, b->h, col);
+
+        int s=2;
+        int w=textWidth(b->label, s);
+        int lx=b->x + (b->w - w)/2;
+        int ly=b->y + (b->h - 8*s)/2;
+        drawText(lx, ly, b->label, s, COL_TEXT_WHITE);
+    }
+
+    sceGuFinish();
+    sceGuSync(0,0);
+    sceDisplayWaitVblankStart();
+    sceGuSwapBuffers();
+}
+
 /* ----------------------------- MAIN ----------------------------- */
 int main(void){
-    /* GU init: double buffered, 16-bit (5650) */
+    /* GU init (double buffered, 16-bit) */
     sceGuInit();
     sceGuStart(GU_DIRECT, list);
     sceGuDrawBuffer(GU_PSM_5650, (void*)0, BUF_WIDTH);
@@ -191,75 +328,15 @@ int main(void){
     sceDisplayWaitVblankStart();
     sceGuDisplay(GU_TRUE);
 
-    /* Text once */
-    pspDebugScreenInit();
-
     /* Controller */
     SceCtrlData pad, old = {0};
     sceCtrlSetSamplingCycle(0);
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
 
     while(1){
-        /* -------- GU pass -------- */
-        sceGuStart(GU_DIRECT, list);
-        sceGuClearColor(COL_BG);
-        sceGuClear(GU_COLOR_BUFFER_BIT);
-        sceGuDisable(GU_DEPTH_TEST);
-        sceGuShadeModel(GU_FLAT);
-        sceGumMatrixMode(GU_PROJECTION); sceGumLoadIdentity();
-        sceGumOrtho(0, SCR_WIDTH, SCR_HEIGHT, 0, -1, 1);
-        sceGumMatrixMode(GU_VIEW);  sceGumLoadIdentity();
-        sceGumMatrixMode(GU_MODEL); sceGumLoadIdentity();
+        render();
 
-        /* display area */
-        drawQuad(20, 40, 440, 60, COL_DISPLAY);
-
-        /* buttons */
-        for(int i=0;i<BTN_COUNT;i++){
-            Btn *b=&buttons[i];
-            unsigned int base = (b->type==BTN_OP_T)? COL_OP : (b->type==BTN_SPEC_T? COL_SPEC : COL_NUM);
-            unsigned int col  = (i==sel)? COL_SEL : base;
-            drawQuad(b->x, b->y, b->w, b->h, col);
-        }
-
-        sceGuFinish();
-        sceGuSync(0,0);
-
-        /* -------- swap & print text -------- */
-        sceDisplayWaitVblankStart();
-        void* fb = sceGuSwapBuffers();                 /* активный буфер показа */
-        pspDebugScreenSetBase((u32*)fb);               /* печатаем именно туда */
-
-        /* title */
-        pspDebugScreenSetTextColor(COL_TEXT_WHITE);
-        pspDebugScreenSetXY(2,1);
-        pspDebugScreenPrintf("iOS Calculator by Serge Legran");
-
-        /* number (right aligned) */
-        {
-            int cols = 55; /* ~440px / 8 */
-            int startCol = 20/8 + (cols - (int)strlen(display) - 1);
-            if(startCol < 3) startCol = 3;
-            int row = 40/8 + 2;
-            pspDebugScreenSetTextColor(COL_TEXT_BLACK);
-            pspDebugScreenSetXY(startCol, row);
-            pspDebugScreenPrintf("%s", display);
-        }
-
-        /* button labels */
-        pspDebugScreenSetTextColor(COL_TEXT_WHITE);
-        for(int i=0;i<BTN_COUNT;i++){
-            Btn *b=&buttons[i];
-            int len=(int)strlen(b->label);
-            int col=(b->x + b->w/2)/8 - (len/2);
-            int row=(b->y + b->h/2)/8;
-            if (col < 0) col = 0;
-            if (row < 0) row = 0;
-            pspDebugScreenSetXY(col,row);
-            pspDebugScreenPrintf("%s", b->label);
-        }
-
-        /* -------- input -------- */
+        /* input */
         sceCtrlReadBufferPositive(&pad,1);
         if((pad.Buttons & PSP_CTRL_START) && !(old.Buttons & PSP_CTRL_START)) break;
 
