@@ -23,8 +23,8 @@ jobs:
           apt-get install -y \
             build-essential git wget cmake pkg-config \
             libreadline-dev libusb-1.0-0-dev autoconf automake libtool \
-            texinfo bison flex dos2unix python3 ca-certificates \
-            python3-pip libgpg-error-dev libssl-dev \
+            texinfo bison flex dos2unix python3 python3-pip python3-venv ca-certificates \
+            libgpg-error-dev libssl-dev \
             libarchive13 libarchive-dev libarchive-tools
 
       - name: Normalize line endings (CRLF -> LF)
@@ -52,6 +52,7 @@ jobs:
         with:
           name: EBOOT.PBP
           path: out/EBOOT.PBP
+
 
 
 
