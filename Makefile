@@ -16,7 +16,7 @@ PSP_EBOOT_ICON = assets/ICON0.PNG
 PSP_EBOOT_PIC1 = assets/PIC1.PNG
 
 # порядок важен: gu/gum + debug/display/ctrl + m
-LIBS = -lpspgu -lpspgum -lpspdebug -lpspdisplay -lpspctrl -lm
+LIBS = -lpspgu -lpspgum -lpspdebug -lpspdisplay -lpspctrl -lpsppower -lm
 
 include $(PSPSDK)/lib/build.mak
 

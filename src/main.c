@@ -4,6 +4,7 @@
 #include <pspgu.h>
 #include <pspgum.h>
 #include <pspdebug.h>
+#include <psppower.h>   // <-- для sceKernelPowerTick
 
 #include <stdio.h>
 #include <string.h>
@@ -82,7 +83,6 @@ static void backspace(void){
 }
 
 /* ---------------- Colors (ABGR) ----------------------- */
-/* debugScreen тоже ок с этими значениями */
 static const unsigned int COL_BG          = 0xFF000000; /* чёрный фон */
 static const unsigned int COL_DISPLAY     = 0xFFDDDDDD; /* светло-серый дисплей */
 static const unsigned int COL_NUM         = 0xFF333333; /* цифры (тёмно-графит) */
@@ -253,7 +253,8 @@ int main(void){
             int len=(int)strlen(b->label);
             int col=(b->x + b->w/2)/8 - (len/2);
             int row=(b->y + b->h/2)/8;
-            if(col<0) col=0; if(row<0) row=0;
+            if (col < 0) col = 0;
+            if (row < 0) row = 0;
             pspDebugScreenSetXY(col,row);
             pspDebugScreenPrintf("%s", b->label);
         }
