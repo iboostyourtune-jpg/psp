@@ -1,15 +1,56 @@
-name: test-runner
+name: build-psp
 
 on:
+  push:
+    branches: [ main, master ]
   workflow_dispatch: {}
 
 jobs:
-  test:
-    runs-on: ubuntu-22.04
+  build:
+    runs-on: ubuntu-latest
+    container: ubuntu:22.04   # запускаем в контейнере под root (sudo не нужен)
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      PSPDEV: /usr/local/pspdev
+      PSPSDK: /usr/local/pspdev/psp/sdk
+      PATH: /usr/local/pspdev/bin:${{ env.PATH }}
     steps:
-      - run: uname -a
-      - run: which sudo
-      - run: sudo apt-get update
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            build-essential git wget cmake pkg-config \
+            libreadline-dev libusb-1.0-0-dev autoconf automake libtool \
+            texinfo bison flex dos2unix python3 ca-certificates
+
+      - name: Normalize line endings (CRLF -> LF)
+        run: |
+          dos2unix Makefile || true
+          dos2unix build_local.sh || true
+          dos2unix docker-build.sh || true
+
+      - name: Build PSPSDK toolchain (takes time)
+        run: |
+          git clone --depth 1 https://github.com/pspdev/psptoolchain.git
+          cd psptoolchain
+          env "PSPDEV=$PSPDEV" ./toolchain.sh -j2
+          cd ..
+
+      - name: Build EBOOT.PBP
+        run: |
+          make clean
+          make
+          mkdir -p out
+          cp EBOOT.PBP out/EBOOT.PBP
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EBOOT.PBP
+          path: out/EBOOT.PBP
+
 
 
 
