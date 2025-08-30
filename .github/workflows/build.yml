@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: ubuntu:22.04
+    container: ubuntu:22.04   # работаем в контейнере под root (sudo не нужен)
     env:
       DEBIAN_FRONTEND: noninteractive
       PSPDEV: /usr/local/pspdev
@@ -24,7 +24,8 @@ jobs:
             build-essential git wget cmake pkg-config \
             libreadline-dev libusb-1.0-0-dev autoconf automake libtool \
             texinfo bison flex dos2unix python3 ca-certificates \
-            python3-pip libgpg-error-dev libssl-dev libarchive-tools
+            python3-pip libgpg-error-dev libssl-dev \
+            libarchive13 libarchive-dev libarchive-tools
 
       - name: Normalize line endings (CRLF -> LF)
         run: |
@@ -51,6 +52,7 @@ jobs:
         with:
           name: EBOOT.PBP
           path: out/EBOOT.PBP
+
 
 
 
