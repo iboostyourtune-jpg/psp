@@ -4,7 +4,7 @@
 #include <pspctrl.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
+#include <stdlib.h>   // нужно для atof()
 #include <math.h>
 
 PSP_MODULE_INFO("CalcIOS", 0, 1, 0);
@@ -25,6 +25,7 @@ static void set_display_double(double v){
     display[sizeof(display)-1] = 0;
 }
 static double display_to_double(void){ return atof(display); }
+
 static void clear_all(void){ strcpy(display,"0"); acc=0.0; op=0; entering_second=0; has_dot=0; }
 static void clear_entry(void){ strcpy(display,"0"); has_dot=0; }
 static void input_digit(char d){
@@ -67,7 +68,7 @@ static void backspace(void){
     display[len-1]=0;
 }
 
-/* ASCII labels */
+/* только ASCII */
 static const char* rows[5][4]={
     {"AC","+/-","%","/"},
     {"7","8","9","*"},
@@ -80,23 +81,20 @@ static int sel_r=3, sel_c=0;
 static void draw_ui(void){
     pspDebugScreenClear();
 
-    // Заголовок — короткий
     pspDebugScreenSetXY(0,0);
     printf("iOS-style Calc  (X=press  O=AC  []=Back  /\\=Equal)\n");
 
-    // Поле дисплея — ширина не более 29 символов справа
     pspDebugScreenSetXY(1,2); printf("+-----------------------------+");
     pspDebugScreenSetXY(1,3);
     char buf[32]; snprintf(buf,sizeof(buf),"%27s",display);
     printf("|%s|", buf);
     pspDebugScreenSetXY(1,4); printf("+-----------------------------+");
 
-    // Кнопки
     int y0=6;
     for(int r=0;r<5;++r){
         for(int c=0;c<4;++c){
-            int x = 2 + c*8;          // 8 символов на кнопку
-            int y = y0 + r*2;         // шаг по вертикали 2 строки
+            int x = 2 + c*8;
+            int y = y0 + r*2;
             const char* label = rows[r][c];
             int sel = (r==sel_r && c==sel_c);
             pspDebugScreenSetXY(x,y);
@@ -105,11 +103,10 @@ static void draw_ui(void){
         }
     }
 
-    // Подсказки — в две короткие строки (<60 символов каждая)
     pspDebugScreenSetXY(0,18);
-    printf("D-Pad: move   X: press   O: AC   []: Backspace\n");
+    printf("D-Pad move  X press  O AC  [] Backspace\n");
     pspDebugScreenSetXY(0,19);
-    printf("/\\: =   L/R: +/-   SELECT: CE   START: quit\n");
+    printf("/\\ =   L/R +/-   SELECT CE   START quit\n");
 }
 
 static void press_button(const char* label){
