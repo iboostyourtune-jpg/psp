@@ -22,6 +22,13 @@ PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 
 static unsigned int __attribute__((aligned(16))) list[262144];
 
+/* ---- UI geometry ---- */
+#define DISPLAY_X   20
+#define DISPLAY_Y   40
+#define DISPLAY_W   440
+#define DISPLAY_H   60
+#define GAP_BELOW_DISPLAY  16   /* отступ снизу табло до 1-го ряда кнопок */
+
 /* ---------------- Calculator state -------------------- */
 static char   display[64] = "0";
 static double acc = 0.0;
@@ -86,8 +93,7 @@ static const unsigned int COL_BG          = 0xFF000000; /* чёрный фон *
 static const unsigned int COL_DISPLAY     = 0xFFDDDDDD; /* светло-серый дисплей */
 static const unsigned int COL_NUM         = 0xFF333333; /* цифры (тёмно-графит) */
 static const unsigned int COL_SPEC        = 0xFFA5A5A5; /* AC, +/-, % */
-static const unsigned int COL_OP          = 0xFF0095FF; /* «оранжевые» (у нас синеватые iOS-style) */
-static const unsigned int COL_SEL         = 0xFFFFFF55; /* мягкая подсветка */
+static const unsigned int COL_OP          = 0xFF0095FF; /* «оранжевые» у нас синеватые iOS-style */
 static const unsigned int COL_TEXT_WHITE  = 0xFFFFFFFF;
 static const unsigned int COL_TEXT_BLACK  = 0xFF000000;
 
@@ -145,7 +151,6 @@ static const Glyph FONT[] = {
 static const int FONT_COUNT = sizeof(FONT)/sizeof(FONT[0]);
 
 static const u8* glyphFor(char c){
-    if(c>='a' && c<='z') c = (char)(c - 'a' + 'A');
     for(int i=0;i<FONT_COUNT;i++) if(FONT[i].ch==c) return FONT[i].row;
     return NULL;
 }
@@ -185,20 +190,14 @@ static void drawQuarter(int cx,int cy,int r,float a0,float a1,unsigned int color
 
 static void drawRoundedRect(int x,int y,int w,int h,int r,unsigned int color){
     if(r<2) { drawQuad(x,y,w,h,color); return; }
-    /* центральные полосы */
     drawQuad(x+r, y,   w-2*r, h,     color);
     drawQuad(x,   y+r, r,     h-2*r, color);
     drawQuad(x+w-r, y+r, r,  h-2*r, color);
-    /* углы как четверть круга */
     int cx,cy;
-    cx=x+r; cy=y+r;                /* top-left: PI..3PI/2 */
-    drawQuarter(cx,cy,r,(float)M_PI, (float)(1.5*M_PI), color);
-    cx=x+w-r; cy=y+r;              /* top-right: 3PI/2..2PI */
-    drawQuarter(cx,cy,r,(float)(1.5*M_PI), (float)(2.0*M_PI), color);
-    cx=x+w-r; cy=y+h-r;            /* bottom-right: 0..PI/2 */
-    drawQuarter(cx,cy,r,0.0f, (float)(0.5*M_PI), color);
-    cx=x+r; cy=y+h-r;              /* bottom-left: PI/2..PI */
-    drawQuarter(cx,cy,r,(float)(0.5*M_PI), (float)M_PI, color);
+    cx=x+r;     cy=y+r;     drawQuarter(cx,cy,r,(float)M_PI, (float)(1.5*M_PI), color);
+    cx=x+w-r;   cy=y+r;     drawQuarter(cx,cy,r,(float)(1.5*M_PI), (float)(2.0*M_PI), color);
+    cx=x+w-r;   cy=y+h-r;   drawQuarter(cx,cy,r,0.0f, (float)(0.5*M_PI), color);
+    cx=x+r;     cy=y+h-r;   drawQuarter(cx,cy,r,(float)(0.5*M_PI), (float)M_PI, color);
 }
 
 /* Фонтовый рендер (через маленькие квадратики) */
@@ -229,7 +228,8 @@ static int textWidth(const char* txt,int s){
 typedef struct { int x,y,w,h; const char* label; int type; int r,c; float pulse; } Btn;
 enum {BTN_NUM_T, BTN_SPEC_T, BTN_OP_T};
 
-static const int LEFT=20, TOP=90, BW=104, BH=30, GX=12, GY=8;
+static const int LEFT=DISPLAY_X, BW=104, BH=30, GX=12, GY=8;
+static const int TOP = DISPLAY_Y + DISPLAY_H + GAP_BELOW_DISPLAY;
 static const int RADIUS = 8; /* скругление */
 
 static Btn buttons[] = {
@@ -317,53 +317,52 @@ static void render(){
     sceGuClear(GU_COLOR_BUFFER_BIT);
 
     /* дисплей (rounded) */
-    drawRoundedRect(20, 40, 440, 60, 10, COL_DISPLAY);
+    drawRoundedRect(DISPLAY_X, DISPLAY_Y, DISPLAY_W, DISPLAY_H, 10, COL_DISPLAY);
 
-    /* заголовок */
-    const char* title = "IOS CALCULATOR BY SERGE LEGRAN";
-    int ts = 2;
-    int tw = textWidth(title, ts);
-    int tx = (SCR_WIDTH - tw)/2;
-    if(tx < 8) tx = 8;
-    drawText(tx, 12, title, ts, COL_TEXT_WHITE);
+    /* заголовок (авто-масштаб) */
+    const char* titleFull  = "IOS CALCULATOR BY SERGE LEGRAN";
+    const char* titleShort = "IOS CALCULATOR";
+    int ts = 2;                              /* базовый масштаб 2× */
+    int maxW = SCR_WIDTH - 16;               /* поля по 8px */
+    int tw = textWidth(titleFull, ts);
+    if (tw > maxW) { ts = 1; tw = textWidth(titleFull, ts); }
+    const char* titleToDraw = titleFull;
+    if (tw > maxW) { titleToDraw = titleShort; tw = textWidth(titleToDraw, ts); }
+    int tx = (SCR_WIDTH - tw) / 2;
+    if (tx < 8) tx = 8;
+    drawText(tx, 12, titleToDraw, ts, COL_TEXT_WHITE);
 
     /* число справа в дисплее */
     {
         int s = 3;
         int w = textWidth(display, s);
-        int dx = 20 + 440 - 10 - w;
-        if(dx < 24) dx = 24;
-        int dy = 40 + (60 - 8*s)/2;
+        int dx = DISPLAY_X + DISPLAY_W - 12 - w;             /* правый внутренний отступ */
+        if(dx < DISPLAY_X + 4) dx = DISPLAY_X + 4;
+        int dy = DISPLAY_Y + (DISPLAY_H - 8*s)/2;
         drawText(dx, dy, display, s, COL_TEXT_BLACK);
     }
 
-    /* кнопки (rounded + pulse) */
+    /* кнопки (rounded + лёгкая подсветка выбранной) */
     for(int i=0;i<BTN_COUNT;i++){
         Btn *b=&buttons[i];
         unsigned int base = (b->type==BTN_OP_T)? COL_OP : (b->type==BTN_SPEC_T? COL_SPEC : COL_NUM);
-
-        /* t: 0..1 — лёгкое высветление при выборе + вспышка при нажатии */
         float t = (i==sel ? 0.20f : 0.0f) + (b->pulse * 0.6f);
         if(t>0.9f) t=0.9f;
         unsigned int fill = lerpABGR(base, 0xFFFFFFFF, t);
 
         drawRoundedRect(b->x, b->y, b->w, b->h, RADIUS, fill);
 
-        /* подпись */
         int s=2;
         int w=textWidth(b->label, s);
         int lx=b->x + (b->w - w)/2;
         int ly=b->y + (b->h - 8*s)/2;
         drawText(lx, ly, b->label, s, COL_TEXT_WHITE);
 
-        /* затухание пульса */
         b->pulse *= 0.86f;
         if(b->pulse < 0.01f) b->pulse = 0.f;
     }
 
-    /* выгружаем кэш перед окончанием кадра */
     sceKernelDcacheWritebackAll();
-
     sceGuFinish();
     sceGuSync(0,0);
     sceDisplayWaitVblankStart();
@@ -416,7 +415,6 @@ int main(void){
 
         old = pad;
 
-        /* не даём устройству «уснуть» */
         scePowerTick(0);
     }
 
