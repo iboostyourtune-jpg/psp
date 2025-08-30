@@ -153,30 +153,18 @@ static void drawQuad(int x,int y,int w,int h,unsigned int color){
     sceGuDrawArray(GU_TRIANGLES, GU_VERTEX_32BITF|GU_TRANSFORM_2D, 6, 0, v);
 }
 
-/* Сборка вершин для одного символа за один вызов drawArray (эффективно) */
+/* Фонтовый рендер: рисуем «пиксели» как маленькие квадраты */
 static void drawGlyph(int x,int y,char c,int s,unsigned int color){
     const u8* g = glyphFor(c); if(!g) return;
-    /* максимум 64 пикселя → 64*2 треугольника → 128 * 3 вершины = 384 вершин */
-    Vertex* v = (Vertex*)sceGuGetMemory(384*sizeof(Vertex));
-    int n = 0;
     sceGuColor(color);
     for(int r=0;r<8;r++){
         u8 bits = g[r];
         for(int col=0; col<8; col++){
             if(bits & (0x80>>col)){
-                int px = x + col*s;
-                int py = y + r*s;
-                v[n+0].x=px;     v[n+0].y=py;     v[n+0].z=0;
-                v[n+1].x=px+s;   v[n+1].y=py;     v[n+1].z=0;
-                v[n+2].x=px;     v[n+2].y=py+s;   v[n+2].z=0;
-                v[n+3].x=px+s;   v[n+3].y=py;     v[n+3].z=0;
-                v[n+4].x=px+s;   v[n+4].y=py+s;   v[n+4].z=0;
-                v[n+5].x=px;     v[n+5].y=py+s;   v[n+5].z=0;
-                n += 6;
+                drawQuad(x + col*s, y + r*s, s, s, color);
             }
         }
     }
-    if(n>0) sceGuDrawArray(GU_TRIANGLES, GU_VERTEX_32BITF|GU_TRANSFORM_2D, n, 0, v);
 }
 static void drawText(int x,int y,const char* txt,int s,unsigned int color){
     int cx=x;
@@ -263,14 +251,22 @@ static void press_label(const char* L){
 /* ---------------- RENDER ------------------------------ */
 static void render(){
     sceGuStart(GU_DIRECT, list);
-    sceGuClearColor(COL_BG);
-    sceGuClear(GU_COLOR_BUFFER_BIT);
+
+    // Базовые состояния — важно задать каждый кадр
+    sceGuDisable(GU_TEXTURE_2D);
     sceGuDisable(GU_DEPTH_TEST);
+    sceGuDepthMask(GU_TRUE);
     sceGuShadeModel(GU_FLAT);
+    sceGuScissor(0, 0, SCR_WIDTH, SCR_HEIGHT);
+    sceGuEnable(GU_SCISSOR_TEST);
+
     sceGumMatrixMode(GU_PROJECTION); sceGumLoadIdentity();
     sceGumOrtho(0, SCR_WIDTH, SCR_HEIGHT, 0, -1, 1);
     sceGumMatrixMode(GU_VIEW);  sceGumLoadIdentity();
     sceGumMatrixMode(GU_MODEL); sceGumLoadIdentity();
+
+    sceGuClearColor(COL_BG);
+    sceGuClear(GU_COLOR_BUFFER_BIT);
 
     /* дисплей */
     drawQuad(20, 40, 440, 60, COL_DISPLAY);
@@ -307,6 +303,9 @@ static void render(){
         drawText(lx, ly, b->label, s, COL_TEXT_WHITE);
     }
 
+    // Обязательно: выгрузить кэш перед отправкой списка на GU
+    sceKernelDcacheWritebackAll();
+
     sceGuFinish();
     sceGuSync(0,0);
     sceDisplayWaitVblankStart();
@@ -324,6 +323,7 @@ int main(void){
     sceGuOffset(2048 - (SCR_WIDTH/2), 2048 - (SCR_HEIGHT/2));
     sceGuViewport(2048, 2048, SCR_WIDTH, SCR_HEIGHT);
     sceGuDisable(GU_DEPTH_TEST);
+    sceGuDepthMask(GU_TRUE);
     sceGuFinish(); sceGuSync(0,0);
     sceDisplayWaitVblankStart();
     sceGuDisplay(GU_TRUE);
