@@ -80,22 +80,23 @@ static int sel_r=3, sel_c=0;
 static void draw_ui(void){
     pspDebugScreenClear();
 
+    // Заголовок — короткий
     pspDebugScreenSetXY(0,0);
-    printf(" iOS-style Calculator  (X=press  O=AC  []=Back  /\\=Equal)\n");
+    printf("iOS-style Calc  (X=press  O=AC  []=Back  /\\=Equal)\n");
 
-    /* Display area (ASCII box) */
+    // Поле дисплея — ширина не более 29 символов справа
     pspDebugScreenSetXY(1,2); printf("+-----------------------------+");
-    pspDebugScreenSetXY(1,3); 
+    pspDebugScreenSetXY(1,3);
     char buf[32]; snprintf(buf,sizeof(buf),"%27s",display);
     printf("|%s|", buf);
     pspDebugScreenSetXY(1,4); printf("+-----------------------------+");
 
-    /* Buttons grid */
+    // Кнопки
     int y0=6;
     for(int r=0;r<5;++r){
         for(int c=0;c<4;++c){
-            int x = 2 + c*8;
-            int y = y0 + r*2;
+            int x = 2 + c*8;          // 8 символов на кнопку
+            int y = y0 + r*2;         // шаг по вертикали 2 строки
             const char* label = rows[r][c];
             int sel = (r==sel_r && c==sel_c);
             pspDebugScreenSetXY(x,y);
@@ -104,8 +105,11 @@ static void draw_ui(void){
         }
     }
 
+    // Подсказки — в две короткие строки (<60 символов каждая)
     pspDebugScreenSetXY(0,18);
-    printf("D-Pad: move   X: press   O: AC   []: Backspace   /\\: =   L/R: +/-   SELECT: CE   START: quit");
+    printf("D-Pad: move   X: press   O: AC   []: Backspace\n");
+    pspDebugScreenSetXY(0,19);
+    printf("/\\: =   L/R: +/-   SELECT: CE   START: quit\n");
 }
 
 static void press_button(const char* label){
