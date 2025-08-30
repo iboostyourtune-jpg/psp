@@ -4,7 +4,7 @@
 #include <pspgu.h>
 #include <pspgum.h>
 #include <pspdebug.h>
-#include <psppower.h>   // <-- для sceKernelPowerTick
+#include <psppower.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -191,7 +191,7 @@ int main(void){
     sceDisplayWaitVblankStart();
     sceGuDisplay(GU_TRUE);
 
-    /* One-time init for text */
+    /* Text once */
     pspDebugScreenInit();
 
     /* Controller */
@@ -228,7 +228,7 @@ int main(void){
         /* -------- swap & print text -------- */
         sceDisplayWaitVblankStart();
         void* fb = sceGuSwapBuffers();                 /* активный буфер показа */
-        pspDebugScreenSetBase((u32*)fb);               /* направили печать в него */
+        pspDebugScreenSetBase((u32*)fb);               /* печатаем именно туда */
 
         /* title */
         pspDebugScreenSetTextColor(COL_TEXT_WHITE);
@@ -279,7 +279,7 @@ int main(void){
         old = pad;
 
         /* не даём устройству «уснуть» */
-        sceKernelPowerTick(0);
+        scePowerTick(0);
     }
 
     sceGuTerm();
