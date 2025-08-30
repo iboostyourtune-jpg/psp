@@ -11,7 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies (Ubuntu 24.04)
+      - name: Install dependencies and build toolchain
+        env:
+          PSPDEV: /usr/local/pspdev
+          PATH: ${{ env.PATH }}:/usr/local/pspdev/bin
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -19,20 +22,16 @@ jobs:
             libreadline-dev libusb-1.0-0-dev autoconf automake libtool \
             texinfo bison flex dos2unix python3
 
-      - name: Fix line endings (CRLF -> LF)
-        run: |
+          # normalize line endings (from Windows CRLF to LF)
           dos2unix Makefile || true
           dos2unix build_local.sh || true
           dos2unix docker-build.sh || true
 
-      - name: Build PSPSDK toolchain (takes time)
-        env:
-          PSPDEV: /usr/local/pspdev
-          PATH: ${{ env.PATH }}:/usr/local/pspdev/bin
-        run: |
+          # build toolchain
           git clone --depth 1 https://github.com/pspdev/psptoolchain.git
           cd psptoolchain
           sudo env "PSPDEV=$PSPDEV" ./toolchain.sh -j2
+          cd ..
 
       - name: Build EBOOT.PBP
         env:
