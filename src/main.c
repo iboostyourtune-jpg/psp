@@ -4,6 +4,7 @@
 #include <pspctrl.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>   // <-- добавили для atof
 #include <math.h>
 
 PSP_MODULE_INFO("CalcIOS", 0, 1, 0);
@@ -75,7 +76,7 @@ static int sel_r=3, sel_c=0;
 static void draw_ui(void){
     pspDebugScreenClear();
     pspDebugScreenSetXY(0,0);
-    printf(" iOS-style Calculator   (X=press  O=AC  []=Back  /\==Equal)\n");
+    printf(" iOS-style Calculator   (X=press  O=AC  []=Back  /\\==Equal)\n");  // экранировали \
     pspDebugScreenSetXY(2,2);
     printf("┌───────────────────────────────┐");
     pspDebugScreenSetXY(2,3);
@@ -94,7 +95,7 @@ static void draw_ui(void){
         }
     }
     pspDebugScreenSetXY(0,22);
-    printf("D-Pad: move  X: press  O: AC   []: Backspace   /\: =   L/R: +/-   SELECT: CE   START: quit");
+    printf("D-Pad: move  X: press  O: AC   []: Backspace   /\\: =   L/R: +/-   SELECT: CE   START: quit"); // экранировали \
 }
 static void press_button(const char* label){
     if(!strcmp(label,"AC")){ clear_all(); return; }
