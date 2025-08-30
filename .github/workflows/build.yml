@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest   # обязательно, это даёт нам полноценный VM с sudo
+    runs-on: ubuntu-22.04   # гарантированно есть sudo
     steps:
       - uses: actions/checkout@v4
 
@@ -22,7 +22,7 @@ jobs:
             libreadline-dev libusb-1.0-0-dev autoconf automake libtool \
             texinfo bison flex dos2unix python3
 
-          # normalize line endings (если были CRLF)
+          # normalize line endings (если CRLF из Windows)
           dos2unix Makefile || true
           dos2unix build_local.sh || true
           dos2unix docker-build.sh || true
@@ -49,4 +49,5 @@ jobs:
         with:
           name: EBOOT.PBP
           path: out/EBOOT.PBP
+
 
