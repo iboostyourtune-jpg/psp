@@ -26,10 +26,13 @@ jobs:
           dos2unix docker-build.sh || true
 
       - name: Build PSPSDK toolchain (takes time)
+        env:
+          PSPDEV: /usr/local/pspdev
+          PATH: ${{ env.PATH }}:/usr/local/pspdev/bin
         run: |
           git clone --depth 1 https://github.com/pspdev/psptoolchain.git
           cd psptoolchain
-          sudo ./toolchain.sh -j2
+          sudo env "PSPDEV=$PSPDEV" ./toolchain.sh -j2
 
       - name: Build EBOOT.PBP
         env:
@@ -47,4 +50,3 @@ jobs:
         with:
           name: EBOOT.PBP
           path: out/EBOOT.PBP
-
